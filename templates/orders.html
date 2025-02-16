@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DashBoard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    <style>
+      body {
+        background-color: #121212;
+        color: #ffffff;
+      }
+      .navbar,
+      .nav-link {
+        background-color: #1f1f1f !important;
+        color: #ffffff !important;
+      }
+      .navbar .nav-link:hover {
+        color: #dddddd !important;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand text-white" href="/">DigiTech</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link text-white" aria-current="page" href="/"
+                >Home</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="/customers">Customers</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active text-white" href="/invoice">Invoice</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-white" href="/products">Products</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <div class="add-button p-3">
+      <a href="/generate-invoice" class="btn btn-primary m-2"
+        >Generate Invoice</a
+      >
+      <button class="btn btn-primary m-2" onclick="filter('All')">All</button>
+      <button class="btn btn-primary m-2" onclick="filter('Paid')">Paid</button>
+      <button class="btn btn-primary m-2" onclick="filter('Unpaid')">
+        Unpaid
+      </button>
+      <button class="btn btn-primary m-2" onclick="filter('{{ month }}')">
+        {{ month }}
+      </button>
+    </div>
+    <div class="container"></div>
+    <nav aria-label="Page navigation example">
+      <ul class="pagination justify-content-center"></ul>
+    </nav>
+    <script type="application/json" id="json_data">
+      {{ invoices|safe }}
+    </script>
+    <script>
+      const container = document.querySelector(".container");
+      const pagination = document.querySelector(".pagination");
+      const inv_json = JSON.parse(
+        document.getElementById("json_data").textContent
+      );
+      let currentPage = 1;
+      const itemsPerPage = 5;
+
+      const filter = (action) => {
+        let filteredData = [];
+        if (action === "All") {
+          filteredData = inv_json;
+        } else if (action === "Paid" || action === "Unpaid") {
+          filteredData = inv_json.filter(
+            (invoice) => invoice.fields.InvoiceStatus === action
+          );
+        } else {
+          const monthMap = {
+            Jan: 0,
+            Feb: 1,
+            Mar: 2,
+            Apr: 3,
+            May: 4,
+            Jun: 5,
+            Jul: 6,
+            Aug: 7,
+            Sep: 8,
+            Oct: 9,
+            Nov: 10,
+            Dec: 11,
+          };
+          const filterMonth = monthMap[action];
+          filteredData = inv_json.filter((invoice) => {
+            const invoiceDate = new Date(invoice.fields.InvoiceDate);
+            return invoiceDate.getMonth() === filterMonth;
+          });
+        }
+        displayResults(filteredData);
+      };
+
+      const displayResults = (data) => {
+        const totalItems = data.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const paginatedData = data.slice(start, end);
+
+        let table = `<table class="table table-bordered table-responsive">
+                <thead>
+                    <tr>
+                        <th colspan="6" class="bg-dark text-white text-center">Customer Invoices</th>
+                    </tr>
+                    <tr>
+                        <th class="bg-dark text-white text-center">SR No</th>
+                        <th class="bg-dark text-white text-center">Invoice Number</th>
+                        <th class="bg-dark text-white text-center">Date</th>
+                        <th class="bg-dark text-white text-center">Total</th>
+                        <th class="bg-dark text-white text-center">Status</th>
+                        <th class="bg-dark text-white text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        paginatedData.forEach((element, index) => {
+          table += `<tr>
+                    <td>${start + index + 1}</td>
+                    <td>${element.fields.InvoiceNumber}</td>
+                    <td>${element.fields.InvoiceDate}</td>
+                    <td>${element.fields.InvoiceTotal}</td>
+                    <td>${element.fields.InvoiceStatus}</td>
+                    <td>${
+                      element.fields.InvoiceStatus === "Unpaid"
+                        ? '<a class="btn btn-info">Paid</a>'
+                        : ""
+                    }</td>
+                </tr>`;
+        });
+        table += `</tbody></table>`;
+        container.innerHTML = table;
+
+        // Update pagination
+        pagination.innerHTML = "";
+        for (let i = 1; i <= totalPages; i++) {
+          pagination.innerHTML += `<li class="page-item ${
+            i === currentPage ? "active" : ""
+          }">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>`;
+        }
+      };
+
+      const changePage = (pageNumber) => {
+        currentPage = pageNumber;
+        filter("All"); // Adjust this to the current filter if needed
+      };
+
+      // Initial display of all invoices
+      filter("All");
+    </script>
+  </body>
+</html>
